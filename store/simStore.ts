@@ -7,6 +7,7 @@ import type {
   Agent,
   AgentAction,
   CompanyHealth,
+  Conversation,
   DecisionContext,
   Message,
   SimEvent,
@@ -15,17 +16,53 @@ import type {
 export const TICK_MS = 2500;
 const MESSAGE_LOG_LIMIT = 50;
 const EVENT_LOG_LIMIT = 20;
+const CONVO_LOG_LIMIT = 12;
+/** Max lines before a dialogue thread wraps up (mirrors rat-agents' 6 exchanges). */
+const MAX_CONVO_LINES = 6;
+
+const pairKey = (a: string, b: string) => [a, b].sort().join("|");
+
+/** Find the currently-open conversation between two agents, if any. */
+function openConvoBetween(convos: Conversation[], a: string, b: string) {
+  const key = pairKey(a, b);
+  return convos.find((c) => c.open && pairKey(...c.participants) === key);
+}
+
+/** Thread a produced message into a conversation, opening or closing as needed. */
+function threadMessage(convos: Conversation[], msg: Message, tick: number): Conversation[] {
+  const next = convos.map((c) => ({ ...c, lines: [...c.lines] }));
+  let convo = openConvoBetween(next, msg.from, msg.to);
+  if (!convo) {
+    convo = {
+      id: `c${tick}-${msg.from}-${msg.to}`,
+      participants: [msg.from, msg.to],
+      lines: [],
+      open: true,
+      lastTick: tick,
+    };
+    next.push(convo);
+  }
+  convo.lines.push({ tick, from: msg.from, text: msg.text });
+  convo.lastTick = tick;
+  if (convo.lines.length >= MAX_CONVO_LINES) convo.open = false;
+  return next.slice(-CONVO_LOG_LIMIT);
+}
 
 interface SimState {
   agents: Agent[];
   health: CompanyHealth;
   events: SimEvent[];
   messages: Message[]; // chronological log for the UI
+  conversations: Conversation[]; // threaded dialogue between agents
   pending: Message[]; // produced last tick, delivered to inboxes next tick
   tick: number;
   isRunning: boolean;
   mockMode: boolean;
   busy: boolean;
+  /** Cumulative count of decisions that actually came back from Gemma. */
+  liveDecisions: number;
+  /** Last error from a failed Gemma call (cleared on a clean tick). */
+  lastError: string | null;
 
   start: () => void;
   stop: () => void;
@@ -47,8 +84,14 @@ function clampHealth(h: CompanyHealth): CompanyHealth {
   };
 }
 
+interface DecideResult {
+  action: AgentAction;
+  live: boolean; // true if it actually came from Gemma
+  error: string | null;
+}
+
 /** Ask the server (Gemma) for a decision; fall back to the mock engine on error. */
-async function apiDecide(ctx: DecisionContext): Promise<AgentAction> {
+async function apiDecide(ctx: DecisionContext): Promise<DecideResult> {
   try {
     const res = await fetch("/api/agents/decide", {
       method: "POST",
@@ -57,9 +100,9 @@ async function apiDecide(ctx: DecisionContext): Promise<AgentAction> {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error ?? "decide failed");
-    return data.action as AgentAction;
-  } catch {
-    return mockDecide(ctx);
+    return { action: data.action as AgentAction, live: true, error: null };
+  } catch (e) {
+    return { action: mockDecide(ctx), live: false, error: String(e) };
   }
 }
 
@@ -68,11 +111,14 @@ export const useSimStore = create<SimState>((set, get) => ({
   health: { ...INITIAL_HEALTH },
   events: [],
   messages: [],
+  conversations: [],
   pending: [],
   tick: 0,
   isRunning: false,
   mockMode: true,
   busy: false,
+  liveDecisions: 0,
+  lastError: null,
 
   start: () => set({ isRunning: true }),
   stop: () => set({ isRunning: false }),
@@ -82,9 +128,12 @@ export const useSimStore = create<SimState>((set, get) => ({
       health: { ...INITIAL_HEALTH },
       events: [],
       messages: [],
+      conversations: [],
       pending: [],
       tick: 0,
       isRunning: false,
+      liveDecisions: 0,
+      lastError: null,
     }),
   setMockMode: (on) => set({ mockMode: on }),
 
@@ -107,13 +156,16 @@ export const useSimStore = create<SimState>((set, get) => ({
     if (get().busy) return;
     set({ busy: true });
     try {
-      const { agents, health, pending, events, tick, mockMode } = get();
+      const { agents, health, pending, events, conversations, tick, mockMode } = get();
       const nextTick = tick + 1;
       const roster = agents.map((a) => ({ id: a.id, name: a.name, role: a.role }));
       const recentEvents = events.slice(-3);
 
+      // Only deliver a message if its conversation is still open (turn cap),
+      // so dialogue threads wrap up instead of looping forever.
       const inboxByAgent = new Map<string, Message[]>();
       for (const m of pending) {
+        if (!openConvoBetween(conversations, m.from, m.to)) continue;
         const list = inboxByAgent.get(m.to) ?? [];
         list.push(m);
         inboxByAgent.set(m.to, list);
@@ -124,16 +176,21 @@ export const useSimStore = create<SimState>((set, get) => ({
 
       const decisions = await Promise.all(
         fresh.map(async (agent) => {
+          const convo = conversations.find((c) => c.open && c.participants.includes(agent.id));
           const ctx: DecisionContext = {
             agent,
             health,
             recentEvents,
             inbox: inboxByAgent.get(agent.id) ?? [],
             roster,
+            activeConversation: convo
+              ? convo.lines.map((l) => ({ from: l.from, text: l.text }))
+              : [],
             tick: nextTick,
           };
-          const action = mockMode ? mockDecide(ctx) : await apiDecide(ctx);
-          return { id: agent.id, action };
+          if (mockMode) return { id: agent.id, action: mockDecide(ctx), live: false, error: null };
+          const r = await apiDecide(ctx);
+          return { id: agent.id, action: r.action, live: r.live, error: r.error };
         }),
       );
 
@@ -147,12 +204,23 @@ export const useSimStore = create<SimState>((set, get) => ({
         produced.push(...res.newMessages);
       }
 
+      // Thread produced messages into conversation dialogue threads.
+      let curConvos = conversations;
+      for (const m of produced) curConvos = threadMessage(curConvos, m, nextTick);
+
+      // Track whether Gemma actually answered this tick (vs silent fallback).
+      const liveThisTick = decisions.filter((d) => d.live).length;
+      const errThisTick = decisions.find((d) => d.error)?.error ?? null;
+
       set({
         agents: curAgents,
         health: clampHealth(curHealth),
+        conversations: curConvos,
         pending: produced,
         messages: [...get().messages, ...produced].slice(-MESSAGE_LOG_LIMIT),
         tick: nextTick,
+        liveDecisions: get().liveDecisions + liveThisTick,
+        lastError: mockMode ? null : errThisTick,
       });
     } finally {
       set({ busy: false });
