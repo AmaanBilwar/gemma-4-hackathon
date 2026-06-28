@@ -1,0 +1,105 @@
+import type { Agent, CompanyHealth } from "@/lib/sim/types";
+
+/** Seed definitions for the 7 AI employees. Agent id === desk id. */
+export const SEED_AGENTS: Agent[] = [
+  {
+    id: "ceo",
+    name: "Ada",
+    role: "CEO",
+    personality: "Decisive, big-picture, calm under pressure.",
+    goals: ["Company survival", "Secure funding", "Sustainable growth"],
+    memory: [],
+    currentTask: "Reviewing the company strategy",
+    location: "ceo",
+    mood: "focused",
+    speech: "",
+  },
+  {
+    id: "cto",
+    name: "Linus",
+    role: "CTO",
+    personality: "Pragmatic engineer-leader, risk-aware, blunt.",
+    goals: ["Reduce technical risk", "Ship reliable systems"],
+    memory: [],
+    currentTask: "Reviewing system architecture",
+    location: "cto",
+    mood: "neutral",
+    speech: "",
+  },
+  {
+    id: "engineer",
+    name: "Grace",
+    role: "Engineer",
+    personality: "Heads-down problem solver, loves a clean fix.",
+    goals: ["Fix technical problems", "Keep the system up"],
+    memory: [],
+    currentTask: "Closing out bug tickets",
+    location: "engineer",
+    mood: "focused",
+    speech: "",
+  },
+  {
+    id: "pm",
+    name: "Tariq",
+    role: "Product Manager",
+    personality: "Customer-obsessed, organized, diplomatic.",
+    goals: ["Delight customers", "Drive the roadmap"],
+    memory: [],
+    currentTask: "Grooming the product backlog",
+    location: "pm",
+    mood: "happy",
+    speech: "",
+  },
+  {
+    id: "sales",
+    name: "Nia",
+    role: "Sales",
+    personality: "High-energy closer, optimistic, relationship-driven.",
+    goals: ["Grow revenue", "Close deals", "Keep customers happy"],
+    memory: [],
+    currentTask: "Following up on the pipeline",
+    location: "sales",
+    mood: "happy",
+    speech: "",
+  },
+  {
+    id: "security",
+    name: "Rex",
+    role: "Security",
+    personality: "Vigilant, skeptical, fast to escalate real threats.",
+    goals: ["Eliminate vulnerabilities", "Contain incidents"],
+    memory: [],
+    currentTask: "Monitoring security dashboards",
+    location: "security",
+    mood: "neutral",
+    speech: "",
+  },
+  {
+    id: "hr",
+    name: "Mei",
+    role: "HR",
+    personality: "Empathetic, people-first, steadying presence.",
+    goals: ["Protect employee wellbeing", "Strengthen culture"],
+    memory: [],
+    currentTask: "Checking in with the team",
+    location: "hr",
+    mood: "happy",
+    speech: "",
+  },
+];
+
+export const INITIAL_HEALTH: CompanyHealth = {
+  revenue: 70,
+  security: 80,
+  morale: 75,
+  runway: 65,
+  customerTrust: 78,
+};
+
+export function cloneSeedAgents(): Agent[] {
+  return SEED_AGENTS.map((a) => ({
+    ...a,
+    goals: [...a.goals],
+    memory: [...a.memory],
+  }));
+}
