@@ -20,6 +20,9 @@ export function AgentSidebar() {
             </div>
             <div className="text-xs text-slate-400">{a.role}</div>
             <div className="mt-1 text-xs text-slate-300">{a.currentTask}</div>
+            {a.thought && (
+              <div className="mt-1 text-[11px] italic text-slate-500">💭 {a.thought}</div>
+            )}
             <div className="mt-1 text-[11px] text-slate-500">
               📍 {locationLabel(a.location, a.id)}
             </div>

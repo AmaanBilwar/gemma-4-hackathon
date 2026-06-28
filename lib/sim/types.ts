@@ -13,14 +13,18 @@ export interface Agent {
   role: Role;
   personality: string;
   goals: string[];
+  /** Short notes about each coworker (id -> note), fed into the agent's prompt. */
+  relationships: Record<string, string>;
   /** Short rolling log of recent observations/messages (most recent last). */
   memory: string[];
   /** Free-text description of what the agent is doing right now. */
   currentTask: string;
   location: Location;
   mood: Mood;
-  /** Transient line shown as a speech bubble; cleared after a few ticks. */
+  /** Transient line said out loud; shown as a 💬 speech bubble. */
   speech: string;
+  /** First-person internal monologue; shown as a 💭 thought bubble. */
+  thought: string;
 }
 
 export interface CompanyHealth {
@@ -60,12 +64,21 @@ export const AGENT_ACTIONS = [
 export const agentActionSchema = z.object({
   action: z.enum(AGENT_ACTIONS),
   target_agent: z.string().describe("Target agent id, or empty string if not applicable"),
-  message: z.string().describe("What the agent says or the task description; may be empty"),
+  message: z.string().describe("What the agent says out loud to the target; may be empty"),
   emotion: z.enum(["happy", "neutral", "stressed", "angry", "focused", "worried"]),
-  reasoning: z.string().describe("One sentence explaining why"),
+  thought: z.string().describe("First-person internal monologue explaining how you feel and why"),
 });
 
 export type AgentAction = z.infer<typeof agentActionSchema>;
+
+/** A back-and-forth dialogue thread between two agents. */
+export interface Conversation {
+  id: string;
+  participants: [string, string]; // agent ids
+  lines: { tick: number; from: string; text: string }[];
+  open: boolean;
+  lastTick: number;
+}
 
 /** Context handed to an agent each tick so it can decide what to do. */
 export interface DecisionContext {
@@ -74,5 +87,7 @@ export interface DecisionContext {
   recentEvents: SimEvent[];
   inbox: Message[]; // messages addressed to this agent since last tick
   roster: { id: string; name: string; role: Role }[];
+  /** The dialogue so far in the agent's active conversation, if any. */
+  activeConversation: { from: string; text: string }[];
   tick: number;
 }

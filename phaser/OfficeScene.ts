@@ -9,7 +9,8 @@ export interface AgentView {
   name: string;
   location: string; // an agent id (a desk) or "meeting"
   mood: string;
-  speech: string;
+  speech: string; // said out loud -> 💬 speech bubble
+  thought: string; // internal monologue -> 💭 thought bubble
 }
 
 export const OFFICE_WIDTH = 840;
@@ -86,7 +87,24 @@ export class OfficeScene extends Phaser.Scene {
     for (const view of this.views) {
       const sprite = this.ensureSprite(view);
       sprite.body.setFillStyle(MOOD_COLORS[view.mood] ?? 0x94a3b8);
-      sprite.speech.setText(view.speech).setVisible(view.speech.length > 0);
+
+      // Speech (out loud) takes priority over thought (self-talk).
+      if (view.speech) {
+        sprite.speech
+          .setText(`💬 ${view.speech}`)
+          .setBackgroundColor("#ffffff")
+          .setColor("#0f172a")
+          .setVisible(true);
+      } else if (view.thought) {
+        sprite.speech
+          .setText(`💭 ${view.thought}`)
+          .setBackgroundColor("#1e293b")
+          .setColor("#94a3b8")
+          .setVisible(true);
+      } else {
+        sprite.speech.setVisible(false);
+      }
+
       sprite.target = this.targetFor(view, attendees);
     }
   }

@@ -6,7 +6,7 @@ import type { AgentAction, DecisionContext, Role } from "@/lib/sim/types";
  * still shows an emergent-looking chain of communication for a demo.
  */
 export function mockDecide(ctx: DecisionContext): AgentAction {
-  const { agent, inbox, recentEvents } = ctx;
+  const { agent, inbox, recentEvents, tick } = ctx;
   const latestEvent = recentEvents[recentEvents.length - 1];
   const incoming = inbox[inbox.length - 1];
 
@@ -18,12 +18,14 @@ export function mockDecide(ctx: DecisionContext): AgentAction {
       target_agent: reply.target ?? incoming.from,
       message: reply.message,
       emotion: reply.emotion,
-      reasoning: `Responding to ${incoming.from} about "${incoming.text}".`,
+      thought: `${incoming.from} just pinged me — I can't ignore this, I'll respond.`,
     };
   }
 
-  // Otherwise, react to the most recent crisis event by role.
-  if (latestEvent) {
+  // React to a crisis only on the tick right after it fires, so the chain
+  // kicks off once and then plays out through replies (no per-tick spam).
+  const eventIsFresh = latestEvent && tick - latestEvent.tick <= 1;
+  if (latestEvent && eventIsFresh) {
     const kind = inferKind(latestEvent.title);
     const react = ROLE_EVENT_REACTIONS[agent.role][kind];
     if (react) {
@@ -32,18 +34,18 @@ export function mockDecide(ctx: DecisionContext): AgentAction {
         target_agent: react.target ?? "",
         message: react.message,
         emotion: react.emotion,
-        reasoning: `Reacting to event: ${latestEvent.title}.`,
+        thought: `"${latestEvent.title}" — this is on me as ${agent.role}. Time to act.`,
       };
     }
   }
 
-  // Idle: keep working at own desk.
+  // Idle: keep working at own desk, thinking to myself.
   return {
     action: "update_state",
     target_agent: "",
     message: agent.currentTask,
     emotion: "focused",
-    reasoning: "Nothing urgent; continuing current work.",
+    thought: "Nothing urgent right now — I'll keep chipping away at my work.",
   };
 }
 
