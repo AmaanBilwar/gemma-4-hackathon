@@ -31,7 +31,9 @@ export function applyAction(
   // Mood always reflects the agent's expressed emotion this tick.
   actor.mood = action.emotion;
   actor.speech = "";
-  remember(actor, `(${tick}) ${action.reasoning}`);
+  // The internal monologue is self-talk: surface it and record it to own memory.
+  actor.thought = action.thought;
+  remember(actor, `(${tick}) 💭 ${action.thought}`);
 
   switch (action.action) {
     case "message_agent": {

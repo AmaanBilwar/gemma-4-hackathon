@@ -8,11 +8,17 @@ export const SEED_AGENTS: Agent[] = [
     role: "CEO",
     personality: "Decisive, big-picture, calm under pressure.",
     goals: ["Company survival", "Secure funding", "Sustainable growth"],
+    relationships: {
+      cto: "Linus is my technical compass; I lean on him in a crisis.",
+      sales: "Nia drives the revenue I need to keep us alive.",
+      security: "Rex's warnings are worth taking seriously.",
+    },
     memory: [],
     currentTask: "Reviewing the company strategy",
     location: "ceo",
     mood: "focused",
     speech: "",
+    thought: "",
   },
   {
     id: "cto",
@@ -20,11 +26,17 @@ export const SEED_AGENTS: Agent[] = [
     role: "CTO",
     personality: "Pragmatic engineer-leader, risk-aware, blunt.",
     goals: ["Reduce technical risk", "Ship reliable systems"],
+    relationships: {
+      engineer: "Grace is my best builder; I route hard fixes to her.",
+      security: "Rex and I share the risk picture.",
+      ceo: "Ada wants the business view, so I translate tech to impact.",
+    },
     memory: [],
     currentTask: "Reviewing system architecture",
     location: "cto",
     mood: "neutral",
     speech: "",
+    thought: "",
   },
   {
     id: "engineer",
@@ -32,11 +44,16 @@ export const SEED_AGENTS: Agent[] = [
     role: "Engineer",
     personality: "Heads-down problem solver, loves a clean fix.",
     goals: ["Fix technical problems", "Keep the system up"],
+    relationships: {
+      cto: "Linus sets my priorities; I trust his calls.",
+      security: "Rex tells me what to patch first.",
+    },
     memory: [],
     currentTask: "Closing out bug tickets",
     location: "engineer",
     mood: "focused",
     speech: "",
+    thought: "",
   },
   {
     id: "pm",
@@ -44,11 +61,16 @@ export const SEED_AGENTS: Agent[] = [
     role: "Product Manager",
     personality: "Customer-obsessed, organized, diplomatic.",
     goals: ["Delight customers", "Drive the roadmap"],
+    relationships: {
+      sales: "Nia is my line to what customers actually feel.",
+      engineer: "Grace turns my roadmap into reality.",
+    },
     memory: [],
     currentTask: "Grooming the product backlog",
     location: "pm",
     mood: "happy",
     speech: "",
+    thought: "",
   },
   {
     id: "sales",
@@ -56,11 +78,16 @@ export const SEED_AGENTS: Agent[] = [
     role: "Sales",
     personality: "High-energy closer, optimistic, relationship-driven.",
     goals: ["Grow revenue", "Close deals", "Keep customers happy"],
+    relationships: {
+      pm: "Tariq gives me the story I sell.",
+      ceo: "Ada counts on me for the numbers.",
+    },
     memory: [],
     currentTask: "Following up on the pipeline",
     location: "sales",
     mood: "happy",
     speech: "",
+    thought: "",
   },
   {
     id: "security",
@@ -68,11 +95,16 @@ export const SEED_AGENTS: Agent[] = [
     role: "Security",
     personality: "Vigilant, skeptical, fast to escalate real threats.",
     goals: ["Eliminate vulnerabilities", "Contain incidents"],
+    relationships: {
+      cto: "Linus is my first call when something's wrong.",
+      engineer: "Grace ships the fixes I need.",
+    },
     memory: [],
     currentTask: "Monitoring security dashboards",
     location: "security",
     mood: "neutral",
     speech: "",
+    thought: "",
   },
   {
     id: "hr",
@@ -80,11 +112,16 @@ export const SEED_AGENTS: Agent[] = [
     role: "HR",
     personality: "Empathetic, people-first, steadying presence.",
     goals: ["Protect employee wellbeing", "Strengthen culture"],
+    relationships: {
+      ceo: "Ada and I watch morale together.",
+      engineer: "Grace burns out if no one checks on her.",
+    },
     memory: [],
     currentTask: "Checking in with the team",
     location: "hr",
     mood: "happy",
     speech: "",
+    thought: "",
   },
 ];
 
@@ -100,6 +137,7 @@ export function cloneSeedAgents(): Agent[] {
   return SEED_AGENTS.map((a) => ({
     ...a,
     goals: [...a.goals],
+    relationships: { ...a.relationships },
     memory: [...a.memory],
   }));
 }

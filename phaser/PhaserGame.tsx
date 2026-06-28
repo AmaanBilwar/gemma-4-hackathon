@@ -13,6 +13,7 @@ function toViews(agents: Agent[]): AgentView[] {
     location: a.location,
     mood: a.mood,
     speech: a.speech,
+    thought: a.thought,
   }));
 }
 
